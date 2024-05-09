@@ -1,7 +1,11 @@
 import Relation.Binary.PropositionalEquality as Eq
+open import Data.Empty using (⊥)
 open import Data.Nat using (ℕ; suc; zero) renaming (_∸_ to _-_)
-open import Data.Product using (∃-syntax; _×_)
-open Eq using (_≡_)
+open import Data.Product using (∃-syntax; _×_; _,_)
+open import Data.Unit using (⊤; tt)
+open import Relation.Binary using (IsEquivalence)
+open import Relation.Unary using (_∈_)
+open Eq using (_≡_; refl)
 
 module stlc where
 
@@ -13,7 +17,9 @@ infixl 8 _·_
 infixl 5 _∘_
 infixl 6 _•_
 infixr 7 _⇒_
-infix 4 _∷_∈_ _⊢_∷_ _⊢_⦂_ _⊢_≣_∷_ _⊢_≣_⦂_ _·_↘_ ⟦_⟧_↘_ Rⁿᶠ_⦂_↘_ Rⁿᵉ_⦂_↘_ ↑_↘_
+infix 4 _∷_∈_ _⊢_∷_ _⊢_⦂_ _⊢_≣_∷_ _⊢_≣_⦂_
+infix 4 _↦_∈_ _·_↘_ ⟦_⟧_↘_ ⦅_⦆_↘_ Rⁿᶠ_⦂_↘_ Rⁿᵉ_⦂_↘_ ↑_↘_
+infix 4 _≣_∷_ _⊨_≣_∷_ _⊨_≣_⦂_ _≣_⦂_
 
 mutual
   -- terms
@@ -46,7 +52,7 @@ data Ctx : Set where
   ε : Ctx
   _•_ : Ctx → Type → Ctx
 
-variable Γ Δ Γ′ Γ₁ Γ₂ Γ₃ Γ₄ : Ctx
+variable Γ Δ Γ′ Γ₁ Γ₂ Γ₃ Γ₄ Ψ : Ctx
 
 -- variable lookup
 data _∷_∈_ : ℕ → Type → Ctx → Set where
@@ -188,56 +194,58 @@ mutual
     ↓[_]_ : Type → D → Dⁿᶠ
 
   -- environment
-  Env = ℕ → D
+  data Env : Set where
+    ε : Env
+    _•_ : Env → D → Env
 
-variable ρ ρ′ ρ″ : Env
-variable a b f : D
+variable γ γ′ γ″ δ δ′ δ″ ψ : Env
+variable a a′ a″ b b′ f f′ : D
 variable e : Dⁿᵉ
 variable d : Dⁿᶠ
 
--- environment extension
-⟨_,_⟩ : Env → D → Env
-⟨ ρ , a ⟩ zero = a
-⟨ ρ , a ⟩ (suc x) = ρ x
+data _↦_∈_ : ℕ → D → Env → Set where
+  here : zero ↦ a ∈ γ • a
+
+  there : x ↦ a ∈ γ → suc x ↦ a ∈ γ • b
 
 mutual
   -- partial application in domain
   data _·_↘_ : D → D → D → Set where
-    clos· : ⟦ t ⟧ ⟨ ρ , a ⟩ ↘ b
-          → ⟨ƛ t ⟩ ρ · a ↘ b
+    clos· : ⟦ t ⟧ (δ • a) ↘ b
+          → ⟨ƛ t ⟩ δ · a ↘ b
 
     ↑fun· : ↑[ S ⇒ T ] e · a ↘ ↑[ T ] (e · ↓[ S ] a)
 
   -- evaluation of terms to domain
   data ⟦_⟧_↘_ : Exp → Env → D → Set where
-    ⟦one⟧ : ⟦ one ⟧ ρ ↘ one
+    ⟦one⟧ : ⟦ one ⟧ γ ↘ one
 
-    ⟦var⟧ : ρ i ≡ a → ⟦ var i ⟧ ρ ↘ a
+    ⟦var⟧ : x ↦ a ∈ γ → ⟦ var x ⟧ γ ↘ a
 
-    ⟦abs⟧ : ⟦ ƛ t ⟧ ρ ↘ ⟨ƛ t ⟩ ρ
+    ⟦abs⟧ : ⟦ ƛ t ⟧ γ ↘ ⟨ƛ t ⟩ γ
 
-    ⟦app⟧ : ⟦ r ⟧ ρ ↘ f
-          → ⟦ s ⟧ ρ ↘ a
+    ⟦app⟧ : ⟦ r ⟧ γ ↘ f
+          → ⟦ s ⟧ γ ↘ a
           → f · a ↘ b
-          → ⟦ r · s ⟧ ρ ↘ b
+          → ⟦ r · s ⟧ γ ↘ b
 
-    ⟦sub⟧ : ⦅ σ ⦆ ρ ↘ ρ′
-          → ⟦ t ⟧ ρ′ ↘ a
-          → ⟦ t [ σ ] ⟧ ρ ↘ a
+    ⟦sub⟧ : ⦅ σ ⦆ γ ↘ δ
+          → ⟦ t ⟧ δ ↘ a
+          → ⟦ t [ σ ] ⟧ γ ↘ a
 
   -- evaluation fo substitutions to environments
   data ⦅_⦆_↘_ : Subst → Env → Env → Set where
-    ⦅up⦆ : ⦅ ↑ ⦆ ⟨ ρ , a ⟩ ↘ ρ
+    ⦅up⦆ : ⦅ ↑ ⦆ (γ • a) ↘ γ
 
-    ⦅id⦆ : ⦅ id ⦆ ρ ↘ ρ
+    ⦅id⦆ : ⦅ id ⦆ γ ↘ γ
 
-    ⦅comp⦆ : ⦅ τ ⦆ ρ ↘ ρ′
-           → ⦅ σ ⦆ ρ′ ↘ ρ″
-           → ⦅ σ ∘ τ ⦆ ρ ↘ ρ″
+    ⦅comp⦆ : ⦅ τ ⦆ γ ↘ δ
+           → ⦅ σ ⦆ δ ↘ ψ
+           → ⦅ σ ∘ τ ⦆ γ ↘ ψ
 
-    ⦅ext⦆ : ⦅ σ ⦆ ρ ↘ ρ′
-          → ⟦ s ⟧ ρ ↘ a
-          → ⦅ σ • s ⦆ ρ ↘ ⟨ ρ′ , a ⟩
+    ⦅ext⦆ : ⦅ σ ⦆ γ ↘ δ
+          → ⟦ s ⟧ γ ↘ a
+          → ⦅ σ • s ⦆ γ ↘ δ • a
 
 mutual
   -- normal terms
@@ -274,10 +282,6 @@ mutual
            → Rⁿᶠ n ⦂ d ↘ v
            → Rⁿᵉ n ⦂ e · d ↘ u · v
 
--- absurd ("empty") environment
-∅ : Env
-∅ = λ _ → one
-
 -- length of context
 ∣_∣ : Ctx → ℕ
 ∣ ε ∣ = zero
@@ -285,10 +289,10 @@ mutual
 
 -- reflection of context to an environment
 data ↑_↘_ : Ctx → Env → Set where
-  ↑empty : ↑ ε ↘ ∅
+  ↑empty : ↑ ε ↘ ε
 
-  ↑ext : ↑ Γ ↘ ρ
-       → ↑ Γ • S ↘ ⟨ ρ , ↑[ S ] lvl ∣ Γ ∣ ⟩
+  ↑ext : ↑ Γ ↘ γ
+       → ↑ Γ • S ↘ γ • ↑[ S ] lvl ∣ Γ ∣
 
 -- normalization by evaluation:
 --   + reflect context into environment
@@ -302,3 +306,106 @@ nf T Γ t =
     ↑ Γ ↘ ρ
   × ⟦ t ⟧ ρ ↘ a
   × Rⁿᶠ ∣ Γ ∣ ⦂ ↓[ T ] a ↘ v
+
+⟦Type⟧ = D × D → Set
+
+variable 𝒜 ℬ : ⟦Type⟧
+
+_≣_∷_ : D → D → ⟦Type⟧ → Set
+a ≣ a′ ∷ 𝒜 = (a , a′) ∈ 𝒜
+
+⟦_⟧ : Type → ⟦Type⟧
+⟦ 𝟙 ⟧ (one , one) = ⊤
+⟦ S ⇒ T ⟧ (f , f′) =
+  ∀ {a a′}
+  → a ≣ a′ ∷ ⟦ S ⟧
+  → ∃[ b ] ∃[ b′ ]
+      f · a ↘ b
+    × f′ · a′ ↘ b′
+    × b ≣ b′ ∷ ⟦ T ⟧
+⟦ _ ⟧ _ = ⊥
+
+‵_ : ⟦Type⟧ → D → Set
+(‵ 𝒜) a = a ≣ a ∷ 𝒜
+
+semtype-sym : a ≣ a′ ∷ ⟦ T ⟧ → a′ ≣ a ∷ ⟦ T ⟧
+semtype-sym {one} {one} {𝟙} _ = tt
+semtype-sym {f} {f′} {S ⇒ T} f≣f′ a≣a′
+  with f≣f′ (semtype-sym a≣a′)
+... | b , b′ , ↘b , ↘b′ , b≣b′ =
+  b′ , b , ↘b′ , ↘b , semtype-sym b≣b′
+
+mutual
+  lookup-unique : x ↦ a ∈ γ → x ↦ a′ ∈ γ → a ≡ a′
+  lookup-unique here here = refl
+  lookup-unique (there a∈ρ) (there a′∈ρ) = lookup-unique a∈ρ a′∈ρ
+
+  eval-unique : ⟦ t ⟧ γ ↘ a → ⟦ t ⟧ γ ↘ a′ → a ≡ a′
+  eval-unique ⟦one⟧ ⟦one⟧ = refl
+  eval-unique (⟦var⟧ a∈ρ) (⟦var⟧ a′∈ρ) = lookup-unique a∈ρ a′∈ρ
+  eval-unique ⟦abs⟧ ⟦abs⟧ = refl
+  eval-unique (⟦app⟧ ↘f ↘a ↘b) (⟦app⟧ ↘f′ ↘a′ ↘b′)
+    rewrite eval-unique ↘f ↘f′
+          | eval-unique ↘a ↘a′
+          | app-unique ↘b ↘b′ = refl
+  eval-unique (⟦sub⟧ ↘δ ↘a) (⟦sub⟧ ↘δ′ ↘a′)
+    rewrite eval-sub-unique ↘δ ↘δ′
+          | eval-unique ↘a ↘a′ = refl
+
+  app-unique : f · a ↘ b → f · a ↘ b′ → b ≡ b′
+  app-unique (clos· ↘b) (clos· ↘b′)
+    rewrite eval-unique ↘b ↘b′ = refl
+  app-unique ↑fun· ↑fun· = refl
+
+  eval-sub-unique : ⦅ σ ⦆ γ ↘ δ → ⦅ σ ⦆ γ ↘ δ′ → δ ≡ δ′
+  eval-sub-unique ⦅up⦆ ⦅up⦆ = refl
+  eval-sub-unique ⦅id⦆ ⦅id⦆ = refl
+  eval-sub-unique (⦅comp⦆ ↘δ₀ ↘δ₁) (⦅comp⦆ ↘δ₀′ ↘δ₁′)
+    rewrite eval-sub-unique ↘δ₀ ↘δ₀′
+          | eval-sub-unique ↘δ₁ ↘δ₁′ = refl
+  eval-sub-unique (⦅ext⦆ ↘δ ↘a) (⦅ext⦆ ↘δ′ ↘a′)
+    rewrite eval-sub-unique ↘δ ↘δ′
+          | eval-unique ↘a ↘a′ = refl
+
+semtype-trans : a ≣ a′ ∷ ⟦ T ⟧ → a′ ≣ a″ ∷ ⟦ T ⟧ → a ≣ a″ ∷ ⟦ T ⟧
+semtype-trans {one} {one} {𝟙} {one} _ _ = tt
+semtype-trans {f} {f′} {S ⇒ T} {f″} f≣f′ f′≣f″ a≣a′
+  with f≣f′ a≣a′
+...  | b , b′ , ↘b , ↘b′ , b≣b′
+  with f′≣f″ (semtype-trans (semtype-sym a≣a′) a≣a′)
+...  | _ , b″ , ↘b′₀ , ↘b″ , b′≣b″
+  rewrite app-unique ↘b′ ↘b′₀ =
+  b , b″ , ↘b , ↘b″ , semtype-trans b≣b′ b′≣b″
+
+split-semtype-refl : a ≣ a′ ∷ ⟦ T ⟧ → a ∈ ‵ ⟦ T ⟧ × a′ ∈ ‵ ⟦ T ⟧
+split-semtype-refl a≣a′ =
+  semtype-trans a≣a′ (semtype-sym a≣a′) , semtype-trans (semtype-sym a≣a′) a≣a′
+
+⦅Ctx⦆ = Env × Env → Set
+
+_≣_⦂_ : Env → Env → ⦅Ctx⦆ → Set
+γ ≣ γ′ ⦂ ⦅Δ⦆ = (γ , γ′) ∈ ⦅Δ⦆
+
+⦅_⦆ : Ctx → ⦅Ctx⦆
+⦅ ε ⦆ (ε , ε) = ⊤
+⦅ Γ • T ⦆ (γ • a , γ′ • a′) =
+  γ ≣ γ′ ⦂ ⦅ Γ ⦆ × a ≣ a′ ∷ ⟦ T ⟧
+⦅ _ ⦆ _ = ⊥
+
+_⊨_≣_∷_ : Ctx → Exp → Exp → Type → Set
+Γ ⊨ t ≣ t′ ∷ T =
+  ∀ {γ γ′}
+  → γ ≣ γ′ ⦂ ⦅ Γ ⦆
+  → ∃[ a ] ∃[ a′ ]
+      ⟦ t ⟧ γ ↘ a
+    × ⟦ t′ ⟧ γ′ ↘ a′
+    × a ≣ a′ ∷ ⟦ T ⟧
+
+_⊨_≣_⦂_ : Ctx → Subst → Subst → Ctx → Set
+Γ ⊨ σ ≣ σ′ ⦂ Δ =
+  ∀ {γ γ′}
+  → γ ≣ γ′ ⦂ ⦅ Γ ⦆
+  → ∃[ δ ] ∃[ δ′ ]
+      ⦅ σ ⦆ γ ↘ δ
+    × ⦅ σ′ ⦆ γ′ ↘ δ′
+    × δ ≣ δ′ ⦂ ⦅ Δ ⦆
