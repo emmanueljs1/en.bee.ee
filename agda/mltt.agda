@@ -5,9 +5,9 @@ open Eq using (refl; _≡_)
 
 module mltt where
 
-variable i j k l n : ℕ
+variable x i j k l n : ℕ
 
-infix 5 ƛ_ ⟨λ_⟩_ ⟨_,_⟩
+infix 5 ƛ_ ⟨λ_⟩_
 infix 7 _[_]
 infix 10 `_
 infix 9 ↑[_]_ ↓[_]_
@@ -15,7 +15,8 @@ infixl 8 _·_
 infixl 5 _∘_
 infixl 6 _•_
 infixr 7 _⇒_ _⇒ᴰ_
-infix 4 _⊢_ _∷_ _⊢_≣_ _⊢_≣_∷_ ⊢_ _⊢_∷_ _[_]=_ _⊢_⦂_ _⊢_≤_ _·_↘_ ⦅_⦆_↘_ Rⁿᶠ_⦂_↘_ Rⁿᵉ_⦂_↘_ ↑_↘_
+infix 4 _⊢_ _∷_ _⊢_≣_ _⊢_≣_∷_ ⊢_ _⊢_∷_ _∷_∈_ _⊢_⦂_ _⊢_≤_
+infix 4 _↦_∈_ _·_↘_ ⦅_⦆_↘_ Rⁿᶠ_⦂_↘_ Rⁿᵉ_⦂_↘_ ↑_↘_
 
 {- Syntax -}
 
@@ -89,10 +90,10 @@ data Ctx : Set where
 variable Γ Δ Γ₁ Γ₂ Γ₃ : Ctx
 
 -- context lookup
-data _[_]=_ : Ctx → ℕ → Exp → Set where
-  here : Γ • S [ zero ]= S [ ↑ ]
+data _∷_∈_ : ℕ → Exp → Ctx → Set where
+  here : zero ∷ S [ ↑ ] ∈ Γ • S
 
-  there : Γ [ i ]= S → Γ • T [ suc i ]= S [ ↑ ]
+  there : x ∷ S ∈ Γ → suc x ∷ S [ ↑ ] ∈ Γ • T
 
 mutual
   -- typing of contexts
@@ -111,7 +112,7 @@ mutual
 
     ⊢subst : Γ ⊢ σ ⦂ Δ → Δ ⊢ t ∷ T → Γ ⊢ t [ σ ] ∷ T [ σ ]
 
-    ⊢var : ⊢ Γ → Γ [ i ]= S → Γ ⊢ var i ∷ S
+    ⊢var : ⊢ Γ → x ∷ S ∈ Γ → Γ ⊢ var x ∷ S
 
     ⊢abs : Γ • S ⊢ t ∷ T → Γ ⊢ ƛ t ∷ ` Fun · S · (ƛ T)
 
@@ -146,7 +147,9 @@ mutual
 
 mutual
   -- environments
-  Env = ℕ → Domain
+  data Env : Set where
+    ε : Env
+    _•_ : Env → Domain → Env
 
   -- domain of evaluation
   data Domain : Set where
@@ -177,23 +180,18 @@ data Base : Domain → Set where
   univ : (k : ℕ) → Base (` 𝒰 k)
   reflect : (k : ℕ) → (E : Domainⁿᵉ) → Base (↑[ ` 𝒰 k ] E)
 
--- "empty" environment (absurd environment)
-∅ : Env
-∅ = λ z → ` 𝟙
-
--- environment extension
-⟨_,_⟩ : Env → Domain → Env
-⟨ ρ , a ⟩ zero = a
-⟨ ρ , a ⟩ (suc x) = ρ x
-
 -- non-dependent function space in domain
 _⇒ᴰ_ : Domain → Domain → Domain
-A₁ ⇒ᴰ A₂ = Fun2 A₁ (⟨λ var (suc zero)⟩ ⟨ ∅ , A₂ ⟩)
+A₁ ⇒ᴰ A₂ = Fun2 A₁ (⟨λ var (suc zero)⟩ (ε • A₂ ))
+
+data _↦_∈_ : ℕ → Domain → Env → Set where
+  here : zero ↦ a ∈ ρ • a
+  there : x ↦ a ∈ ρ → suc x ↦ a ∈ ρ • b
 
 -- evaluating expressions into domain
 mutual
   data _·_↘_ : Domain → Domain → Domain → Set where
-    clos· : ⦅ t ⦆ ⟨ ρ , a ⟩ ↘ b → ⟨λ t ⟩ ρ · a ↘ b
+    clos· : ⦅ t ⦆ (ρ • a) ↘ b → ⟨λ t ⟩ ρ · a ↘ b
 
     ↑Fun· : F · a ↘ A′ → ↑[ Fun2 A F ] e · a ↘ ↑[ A′ ] (e · ↓[ A ] a)
 
@@ -204,7 +202,7 @@ mutual
   data ⦅_⦆_↘_ : Exp → Env → Domain → Set where
     ⦅cst⦆ : ⦅ ` c ⦆ ρ ↘ ` c
 
-    ⦅var⦆ : ρ i ≡ a → ⦅ var i ⦆ ρ ↘ a
+    ⦅var⦆ : x ↦ a ∈ ρ → ⦅ var x ⦆ ρ ↘ a
 
     ⦅abs⦆ : ⦅ ƛ t ⦆ ρ ↘ ⟨λ t ⟩ ρ
 
@@ -244,11 +242,11 @@ mutual
 
 -- reflection of contexts
 data ↑_↘_ : Ctx → Env → Set where
-  ↑ε : ↑ ε ↘ ∅
+  ↑ε : ↑ ε ↘ ε
 
   ↑• : ↑ Γ ↘ ρ
      → ⦅ S ⦆ ρ ↘ A
-     → ↑ Γ • S ↘ ⟨ ρ , ↑[ A ] lvl ∣ Γ ∣ ⟩
+     → ↑ Γ • S ↘ ρ • ↑[ A ] lvl ∣ Γ ∣
 
 {- Normalization by Evaluation -}
 
