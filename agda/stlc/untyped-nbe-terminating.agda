@@ -7,11 +7,30 @@ open import Data.Unit using (tt) renaming (⊤ to Unit)
 open import Function using (_∘_)
 open Eq using (_≡_; refl)
 
-open import types
-
 -- Proof that untyped NbE is terminating for typeable terms
 -- i.e. section 3.4 of Abel 2013
 module untyped-nbe-terminating where
+
+{- Types -}
+
+data Type : Set where
+  bool : Type
+  _⇒_ : Type → Type → Type
+  _*_ : Type → Type → Type
+
+infixr 7 _⇒_
+infixr 9 _*_
+
+{- Typing contexts -}
+
+Ctx : ℕ → Set
+Ctx n = Fin n → Type
+
+_∷_ : ∀ {n : ℕ} → Ctx n → Type → Ctx (suc n)
+(_ ∷ T) zero    = T
+(Γ ∷ _) (suc m) = Γ m
+
+infixl 5 _∷_
 
 {- Syntax -}
 
