@@ -3,7 +3,7 @@ open import Data.Nat using (ℕ; zero; suc; _<_; _≤_) renaming (_∸_ to _-_)
 open import Data.Product using (∃-syntax; _×_; _,_)
 open Eq using (refl; _≡_)
 
-module nbe where
+module mltt where
 
 variable i j k l n : ℕ
 
