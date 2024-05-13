@@ -597,18 +597,6 @@ split-semtype² {a} {a′} {T} a==a′ =
   where
     a′==a = semtype²-sym {a} {a′} {T} a==a′
 
-semtype→semtype² : a ∈ ⟦ T ⟧ → a == a ∈ ⟦ T ⟧²
-semtype→semtype² {↑[ x₁ ] x₂} {𝟙} x = {!!}
-semtype→semtype² {one} {𝟙} _ = tt
-semtype→semtype² {T = S ⇒ T} f∈⟦S⇒T⟧ a==a′ = {!!}
-
-semtype²-refl→semtype : a == a ∈ ⟦ T ⟧² → a ∈ ⟦ T ⟧
-semtype²-refl→semtype {↑[ 𝟙 ] e} {𝟙} e==e n
-  with e==e n
-... | u , ↘u , _ = u , ↘u
-semtype²-refl→semtype {one} {𝟙} _ = tt
-semtype²-refl→semtype {T = S ⇒ T} f==f x = {!!}
-
 SemCtx² = Env × Env → Set
 
 ⦅_⦆² : Ctx → SemCtx²
@@ -616,6 +604,13 @@ SemCtx² = Env × Env → Set
 ⦅ Γ • T ⦆² (γ • a , γ′ • a′) =
   γ == γ′ ∈ ⦅ Γ ⦆² × a == a′ ∈ ⟦ T ⟧²
 ⦅ _ ⦆² _ = Empty
+
+_??²_ : γ == γ′ ∈ ⦅ Γ ⦆² → x ∷ T ∈ Γ
+      → ∃[ a ] ∃[ a′ ] x ↦ a ∈ γ × x ↦ a′ ∈ γ′ × a == a′ ∈ ⟦ T ⟧²
+_??²_ {_ • a} {_ • a′} (_ , a==a′) here = a , a′ , here , here , a==a′
+_??²_ {_ • _} {_ • _} (γ==γ′ , _) (there x∷T∈Γ) =
+  let (a , a′ , x↦a∈γ , x↦a′∈γ′ , a==a′) = γ==γ′ ??² x∷T∈Γ in
+  a , a′ , there x↦a∈γ , there x↦a′∈γ′ , a==a′
 
 semctx²-sym : γ == γ′ ∈ ⦅ Γ ⦆² → γ′ == γ ∈ ⦅ Γ ⦆²
 semctx²-sym {ε} {ε} {ε} tt = tt
@@ -651,22 +646,102 @@ _⊨_==_⦂_ : Ctx → Subst → Subst → Ctx → Set
     × δ == δ′ ∈ ⦅ Δ ⦆²
 
 mutual
-  fundamental-lemma-sub₂ : Γ ⊢ σ == σ′ ⦂ Δ → Γ ⊨ σ == σ′ ⦂ Δ
-  fundamental-lemma-sub₂ = {!!}
+  fundamental-lemma-sub : Γ ⊢ σ ⦂ Δ → Γ ⊨ σ == σ ⦂ Δ
+  fundamental-lemma-sub ⊢up {γ • _} {γ′ • _} (γ==γ′ , _) =
+    γ , γ′ , ⦅up⦆ , ⦅up⦆ , γ==γ′
+  fundamental-lemma-sub ⊢id {γ} {γ′} γ==γ′ = γ , γ′ , ⦅id⦆ , ⦅id⦆ , γ==γ′
+  fundamental-lemma-sub (⊢comp ⊢σ ⊢τ) γ==γ′
+    with fundamental-lemma-sub ⊢σ γ==γ′
+  ... | δ , δ′ , ↘δ , ↘δ′ , δ==δ′
+    with fundamental-lemma-sub ⊢τ δ==δ′
+  ... | ψ , ψ′ , ↘ψ , ↘ψ′ , ψ==ψ′ =
+    ψ , ψ′ , ⦅comp⦆ ↘δ ↘ψ , ⦅comp⦆ ↘δ′ ↘ψ′ , ψ==ψ′
+  fundamental-lemma-sub (⊢ext ⊢σ ⊢s) γ==γ′
+    with fundamental-lemma-sub ⊢σ γ==γ′
+  ... | δ , δ′ , ↘δ , ↘δ′ , δ==δ′
+    with fundamental-lemma ⊢s γ==γ′
+  ... | a , a′ , ↘a , ↘a′ , a==a′ =
+    δ • a , δ′ • a′ , ⦅ext⦆ ↘δ ↘a , ⦅ext⦆ ↘δ′ ↘a′ , δ==δ′ , a==a′
 
-  fundamental-lemma₂ : Γ ⊢ t == t′ ∷ T → Γ ⊨ t == t′ ∷ T
-  fundamental-lemma₂ (β ⊢t ⊢σ) γ==γ′ = {!!}
-  fundamental-lemma₂ (η x) γ==γ′ = {!!}
-  fundamental-lemma₂ (var-↑ x) γ==γ′ = {!!}
-  fundamental-lemma₂ ([id] x) γ==γ′ = {!!}
-  fundamental-lemma₂ (zero-• x x₁) γ==γ′ = {!!}
-  fundamental-lemma₂ (suc-• x x₁ x₂) γ==γ′ = {!!}
-  fundamental-lemma₂ (one-sub x) γ==γ′ = {!!}
-  fundamental-lemma₂ (abs-sub x x₁) γ==γ′ = {!!}
-  fundamental-lemma₂ (app-sub x x₁ x₂) γ==γ′ = {!!}
-  fundamental-lemma₂ (sub-comp x x₁ x₂) γ==γ′ = {!!}
-  fundamental-lemma₂ (app-compatible t==t′ t==t′₁) γ==γ′ = {!!}
-  fundamental-lemma₂ (ξ t==t′) γ==γ′ = {!!}
-  fundamental-lemma₂ (refl ⊢t) γ==γ′ = {!!}
-  fundamental-lemma₂ (sym t==t′) γ==γ′ = {!!}
-  fundamental-lemma₂ (trans t==t′ t==t′₁) γ==γ′ = {!!}
+  fundamental-lemma : Γ ⊢ t ∷ T → Γ ⊨ t == t ∷ T
+  fundamental-lemma ⊢one γ==γ′ =
+    one , one , ⟦one⟧ , ⟦one⟧ , tt
+  fundamental-lemma (⊢var x∷T∈Γ) γ==γ′ =
+    let (a , a′ , x↦a∈γ , x↦a′∈γ′ , a==a′) = γ==γ′ ??² x∷T∈Γ in
+    a , a′ , ⟦var⟧ x↦a∈γ , ⟦var⟧ x↦a′∈γ′ , a==a′
+  fundamental-lemma (⊢abs {t = t} ⊢t) {γ} {γ′} γ==γ′ =
+    ⟨ƛ t ⟩ γ , ⟨ƛ t ⟩ γ′ , ⟦abs⟧ , ⟦abs⟧ ,
+    λ a==a′ →
+      let (b , b′ , ↘b , ↘b′ , b==b′) = fundamental-lemma
+                                          ⊢t (γ==γ′ , a==a′)
+      in
+      b , b′ , clos· ↘b , clos· ↘b′ , b==b′
+  fundamental-lemma (⊢app ⊢r ⊢s) γ==γ′
+    with fundamental-lemma ⊢r γ==γ′
+  ... | f , f′ , ↘f , ↘f′ , f==f′
+    with fundamental-lemma ⊢s γ==γ′
+  ... | a , a′ , ↘a , ↘a′ , a==a′
+    with f==f′ a==a′
+  ... | b , b′ , ↘b , ↘b′ , b==b′ =
+    b , b′ , ⟦app⟧ ↘f ↘a ↘b , ⟦app⟧ ↘f′ ↘a′ ↘b′ , b==b′
+  fundamental-lemma (⊢sub ⊢σ ⊢t) γ==γ′
+    with fundamental-lemma-sub ⊢σ γ==γ′
+  ... | δ , δ′ , ↘δ , ↘δ′ , δ==δ′
+    with fundamental-lemma ⊢t δ==δ′
+  ... | a , a′ , ↘a , ↘a′ , a==a′ =
+    a , a′ , ⟦sub⟧ ↘δ ↘a , ⟦sub⟧ ↘δ′ ↘a′ , a==a′
+
+mutual
+  fundamental-lemma-sub² : Γ ⊢ σ == σ′ ⦂ Δ → Γ ⊨ σ == σ′ ⦂ Δ
+  fundamental-lemma-sub² (up-ext ⊢σ ⊢s) γ==γ′ = {!!}
+  fundamental-lemma-sub² (comp-identityˡ ⊢σ) γ==γ′ = {!!}
+  fundamental-lemma-sub² (comp-identityʳ ⊢σ) γ==γ′ = {!!}
+  fundamental-lemma-sub² (comp-assoc ⊢σ₁ ⊢σ₂ ⊢σ₃) γ==γ′ = {!!}
+  fundamental-lemma-sub² η-id γ==γ′ = {!!}
+  fundamental-lemma-sub² (up-comp ⊢τ ⊢σ ⊢s) γ==γ′ = {!!}
+  fundamental-lemma-sub² (ext-compatible σ==σ′ s==s′) γ==γ′ = {!!}
+  fundamental-lemma-sub² (comp-compatible σ==σ′ τ==τ′) γ==γ′ = {!!}
+  fundamental-lemma-sub² (refl ⊢σ) γ==γ′ =
+    fundamental-lemma-sub ⊢σ γ==γ′
+  fundamental-lemma-sub² (sym σ′==σ) γ==γ′
+    with fundamental-lemma-sub² σ′==σ (semctx²-sym γ==γ′)
+  ... | δ′ , δ , ↘δ′ , ↘δ , δ′==δ =
+    δ , δ′ , ↘δ , ↘δ′ , semctx²-sym δ′==δ
+  fundamental-lemma-sub² (trans σ==σ′ σ′==σ″) γ==γ′
+    with fundamental-lemma-sub² σ==σ′ γ==γ′
+  ... | δ , _ , ↘δ , ↘δ′ , δ==δ′
+    with split-semctx² γ==γ′
+  ... | _ , γ′==γ′
+    with fundamental-lemma-sub² σ′==σ″ γ′==γ′
+  ... | δ′ , δ″ , ↘δ′₀ , ↘δ″ , δ′==δ″
+    rewrite eval-sub-unique ↘δ′ ↘δ′₀ =
+    δ , δ″ , ↘δ , ↘δ″ , semctx²-trans δ==δ′ δ′==δ″
+
+  fundamental-lemma² : Γ ⊢ t == t′ ∷ T → Γ ⊨ t == t′ ∷ T
+  fundamental-lemma² (β ⊢t ⊢σ) γ==γ′ = {!!}
+  fundamental-lemma² (η ⊢t) γ==γ′ = {!!}
+  fundamental-lemma² (var-↑ x∷T∈Γ) γ==γ′ = {!!}
+  fundamental-lemma² ([id] ⊢t) γ==γ′ = {!!}
+  fundamental-lemma² (zero-• ⊢σ ⊢s) γ==γ′ = {!!}
+  fundamental-lemma² (suc-• ⊢σ ⊢s x∷T∈Δ) γ==γ′ = {!!}
+  fundamental-lemma² (one-sub ⊢σ) γ==γ′ = {!!}
+  fundamental-lemma² (abs-sub ⊢σ ⊢t) γ==γ′ = {!!}
+  fundamental-lemma² (app-sub ⊢σ ⊢r ⊢s) γ==γ′ = {!!}
+  fundamental-lemma² (sub-comp ⊢τ ⊢σ ⊢t) γ==γ′ = {!!}
+  fundamental-lemma² (app-compatible r==r′ s==s′) γ==γ′ = {!!}
+  fundamental-lemma² (ξ t==t′) γ==γ′ = {!!}
+  fundamental-lemma² (refl ⊢t) γ==γ′ =
+    fundamental-lemma ⊢t γ==γ′
+  fundamental-lemma² {T = T} (sym t′==t) γ==γ′
+    with fundamental-lemma² t′==t (semctx²-sym γ==γ′)
+  ... | a′ , a , ↘a′ , ↘a , a′==a =
+    a , a′ , ↘a , ↘a′ , semtype²-sym {a′} {a} {T} a′==a
+  fundamental-lemma² {T = T} (trans t==t′ t′==t″) γ==γ′
+    with fundamental-lemma² t==t′ γ==γ′
+  ... | a , _ , ↘a , ↘a′ , a==a′
+    with split-semctx² γ==γ′
+  ... | _ , γ′==γ′
+    with fundamental-lemma² t′==t″ γ′==γ′
+  ... | a′ , a″ , ↘a′₀ , ↘a″ , a′==a″
+    rewrite eval-unique ↘a′ ↘a′₀ =
+    a , a″ , ↘a , ↘a″ , semtype²-trans {a} {a′} {T} {a″} a==a′ a′==a″
